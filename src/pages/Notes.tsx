@@ -41,9 +41,12 @@ const Notes = () => {
 
   const fetchNotes = async () => {
     try {
+      // Only fetch notes owned by the current user. Public notes can still be
+      // viewed via shared links; the "My Notes" page should not list other users' private notes.
       const { data, error } = await supabase
         .from("notes")
         .select("*")
+        .eq("user_id", user?.id)
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
@@ -60,7 +63,7 @@ const Notes = () => {
     try {
       const { error } = await supabase.from("notes").delete().eq("id", id);
       if (error) throw error;
-      
+
       setNotes(notes.filter((note) => note.id !== id));
       toast.success("Note deleted");
     } catch (error) {
@@ -92,7 +95,7 @@ const Notes = () => {
   return (
     <div className="min-h-screen">
       <Navbar />
-      
+
       <main className="container mx-auto px-4 pt-32 pb-20">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -173,7 +176,9 @@ const Notes = () => {
                                 key={idx}
                                 tag={tag}
                                 variant={
-                                  ["purple", "blue", "green", "orange"][idx % 4] as any
+                                  ["purple", "blue", "green", "orange"][
+                                    idx % 4
+                                  ] as any
                                 }
                               />
                             ))}
