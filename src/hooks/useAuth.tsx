@@ -32,13 +32,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -59,13 +59,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         emailRedirectTo: redirectUrl,
       },
     });
-    
+
     if (error) {
       toast.error(error.message);
     } else {
       toast.success("Account created successfully!");
     }
-    
+
     return { error };
   };
 
@@ -74,25 +74,54 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       email,
       password,
     });
-    
+
     if (error) {
       toast.error(error.message);
     } else {
       toast.success("Signed in successfully!");
       navigate("/notes");
     }
-    
+
     return { error };
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    toast.success("Signed out successfully!");
-    navigate("/");
+    try {
+      const { error } = await supabase.auth.signOut();
+
+      // Clear local state immediately so UI updates even if event lags
+      setUser(null);
+      setSession(null);
+
+      if (error) {
+        console.error("Error during signOut:", error);
+        toast.error(error.message || "Failed to sign out");
+        return;
+      }
+
+      // Also attempt to clear any Supabase auth entries from localStorage
+      try {
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith("sb-") || key.includes("supabase")) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch (e) {
+        // ignore localStorage permission errors
+      }
+
+      toast.success("Signed out successfully!");
+      navigate("/");
+    } catch (err) {
+      console.error("Unexpected error signing out:", err);
+      toast.error("Failed to sign out");
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, signUp, signIn, signOut, loading }}>
+    <AuthContext.Provider
+      value={{ user, session, signUp, signIn, signOut, loading }}
+    >
       {children}
     </AuthContext.Provider>
   );
