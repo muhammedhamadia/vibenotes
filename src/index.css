@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* VibeNotes Design System - Indigo to Violet theme */
+    --background: 240 30% 98%;
+    --foreground: 240 40% 12%;
+
+    /* Glass card with subtle backdrop */
+    --card: 0 0% 100%;
+    --card-foreground: 240 40% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 40% 12%;
+
+    /* Primary: Deep indigo */
+    --primary: 245 58% 51%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 245 75% 65%;
+
+    /* Secondary: Lighter violet accent */
+    --secondary: 270 50% 65%;
+    --secondary-foreground: 240 40% 12%;
+
+    /* Muted backgrounds */
+    --muted: 240 20% 96%;
+    --muted-foreground: 240 15% 45%;
+
+    /* Accent: Violet pop */
+    --accent: 270 60% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders and inputs with subtle tint */
+    --border: 240 20% 88%;
+    --input: 240 20% 92%;
+    --ring: 245 58% 51%;
+
+    --radius: 1rem;
+
+    /* Custom gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(245, 58%, 51%) 0%, hsl(270, 60%, 60%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(240, 30%, 98%) 0%, hsl(245, 30%, 95%) 100%);
+    
+    /* Shadows */
+    --shadow-sm: 0 2px 8px hsl(245 58% 51% / 0.1);
+    --shadow-md: 0 4px 16px hsl(245 58% 51% / 0.15);
+    --shadow-lg: 0 8px 32px hsl(245 58% 51% / 0.2);
+    --shadow-glow: 0 0 40px hsl(245 75% 65% / 0.3);
+  }
+
+  .dark {
+    --background: 240 40% 6%;
+    --foreground: 240 10% 95%;
+
+    --card: 240 30% 10%;
+    --card-foreground: 240 10% 95%;
+
+    --popover: 240 30% 10%;
+    --popover-foreground: 240 10% 95%;
+
+    --primary: 245 75% 65%;
+    --primary-foreground: 240 40% 6%;
+    --primary-glow: 245 85% 75%;
+
+    --secondary: 270 60% 60%;
+    --secondary-foreground: 240 10% 95%;
+
+    --muted: 240 30% 15%;
+    --muted-foreground: 240 10% 65%;
+
+    --accent: 270 70% 65%;
+    --accent-foreground: 240 40% 6%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 240 10% 95%;
+
+    --border: 240 30% 18%;
+    --input: 240 30% 18%;
+    --ring: 245 75% 65%;
+
+    /* Dark mode gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(245, 75%, 65%) 0%, hsl(270, 70%, 65%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(240, 40%, 6%) 0%, hsl(245, 40%, 10%) 100%);
+    
+    /* Dark mode shadows */
+    --shadow-sm: 0 2px 8px hsl(245 75% 65% / 0.15);
+    --shadow-md: 0 4px 16px hsl(245 75% 65% / 0.25);
+    --shadow-lg: 0 8px 32px hsl(245 75% 65% / 0.35);
+    --shadow-glow: 0 0 50px hsl(245 85% 75% / 0.4);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    background: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(245, 30%, 95%) 100%);
+  }
+
+  .dark body {
+    background: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(245, 40%, 10%) 100%);
+  }
+}
+
+@layer components {
+  /* Glass effect utility */
+  .glass {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50;
+  }
+
+  /* Hover lift effect */
+  .hover-lift {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
+  }
+
+  /* Tag chip styles */
+  .tag-chip {
+    @apply px-3 py-1 rounded-full text-xs font-medium transition-all duration-200;
+  }
+}
