@@ -8,7 +8,16 @@ import { Navbar } from "@/components/Navbar";
 import { TagChip } from "@/components/TagChip";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Plus, Share2, Copy, Check } from "lucide-react";
+import { ArrowLeft, Plus, Share2, Copy, Check, Sparkles } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
@@ -35,13 +44,6 @@ const NoteDetail = () => {
   const [saving, setSaving] = useState(false);
   const [loadingNote, setLoadingNote] = useState(true);
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate("/auth");
-    }
-  }, [user, loading, navigate]);
-
   useEffect(() => {
     if (user && id) {
       fetchNote();
@@ -141,6 +143,118 @@ const NoteDetail = () => {
     }
   };
 
+  // AI Summary state and handler
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryText, setSummaryText] = useState("");
+
+  const fetchAISummary = async () => {
+    if (!content || content.trim().length === 0) {
+      toast.error("Nothing to summarize");
+      return;
+    }
+
+    const token = import.meta.env.VITE_HUGGINGFACE_TOKEN;
+    if (!token) {
+      toast.error("Missing Hugging Face token (VITE_HUGGINGFACE_TOKEN)");
+      return;
+    }
+
+    setSummaryLoading(true);
+    setSummaryText("");
+
+    try {
+      // Dynamically import the Hugging Face Inference SDK on demand.
+      let HfInference: any;
+      try {
+        const mod = await import("@huggingface/inference");
+        HfInference =
+          (mod as any).HfInference || (mod as any).default || (mod as any);
+      } catch (importErr) {
+        console.error("Hugging Face SDK not installed:", importErr);
+        toast.error(
+          "Hugging Face SDK not installed. Run `npm i @huggingface/inference` and restart."
+        );
+        return;
+      }
+
+      const hf = new HfInference(token);
+
+      // Models have a max input length; if the note exceeds it the provider
+      // can return errors like "index out of range in self". Try the full
+      // content first and, on that specific failure, retry with truncated text.
+      const MAX_CHARS = 3000; // heuristic (safe for BART's ~1k token limit)
+
+      const callSummarize = async (inputText: string) =>
+        hf.summarization({
+          model: "facebook/bart-large-cnn",
+          inputs: inputText,
+          parameters: { max_length: 200, min_length: 25 },
+        });
+
+      let response: any;
+      try {
+        response = await callSummarize(content);
+      } catch (firstErr: any) {
+        const msg =
+          (firstErr && (firstErr.message || firstErr.toString())) || "";
+        console.warn("First summarization attempt failed:", msg || firstErr);
+        if (
+          msg.includes("index out of range") ||
+          msg.toLowerCase().includes("token") ||
+          msg.toLowerCase().includes("input")
+        ) {
+          const truncated =
+            content.slice(0, MAX_CHARS) +
+            (content.length > MAX_CHARS ? "\n\n[...truncated]" : "");
+          toast.info("Note was too long — summarizing truncated content.");
+          try {
+            response = await callSummarize(truncated);
+          } catch (secondErr) {
+            console.error("Retry with truncated content failed:", secondErr);
+            throw secondErr;
+          }
+        } else {
+          throw firstErr;
+        }
+      }
+
+      // Normalize SDK response shapes to a single string
+      let out = "";
+      if (Array.isArray(response)) {
+        const first = response[0];
+        out =
+          (first && (first.summary_text || first.generated_text)) ||
+          JSON.stringify(first || response);
+      } else if (response && typeof response === "object") {
+        out =
+          (response as any).summary_text ||
+          (response as any).generated_text ||
+          JSON.stringify(response);
+      } else if (typeof response === "string") {
+        out = response;
+      } else {
+        out = JSON.stringify(response);
+      }
+
+      setSummaryText(out || "(no summary returned)");
+      setSummaryOpen(true);
+    } catch (err) {
+      console.error("Error calling Hugging Face inference via SDK:", err);
+      const msg =
+        (err && (err.message || err.toString())) || "AI summarization failed";
+      if (msg.includes("index out of range")) {
+        toast.error(
+          "AI summarization failed: input too long even after truncation."
+        );
+      } else {
+        toast.error("AI summarization failed");
+      }
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
   if (loading || loadingNote) {
     return (
       <div className="min-h-screen">
@@ -173,6 +287,10 @@ const NoteDetail = () => {
               Back
             </Button>
             <div className="flex gap-2">
+              <Button variant="outline" onClick={handleSave} disabled={saving}>
+                {saving ? "Saving..." : "Save"}
+              </Button>
+
               <Button
                 variant="outline"
                 onClick={generateShareLink}
@@ -185,18 +303,18 @@ const NoteDetail = () => {
                 )}
                 {copied ? "Copied!" : "Share"}
               </Button>
+
               <Button
                 variant="outline"
-                onClick={() => setShowPreview(!showPreview)}
+                onClick={fetchAISummary}
+                disabled={summaryLoading}
+                className="group flex items-center gap-2 transform transition-all duration-150 hover:scale-105 hover:bg-gradient-to-r hover:from-primary hover:to-secondary hover:text-white hover:shadow-lg"
               >
-                {showPreview ? "Edit" : "Preview"}
-              </Button>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? "Saving..." : "Save"}
+                <Sparkles className="h-4 w-4 text-primary transition-transform group-hover:rotate-12 group-hover:text-white" />
+                {summaryLoading ? "Summarizing..." : "AI Summary"}
               </Button>
             </div>
           </div>
-
           <Card className="glass rounded-2xl p-8">
             {!showPreview ? (
               <div className="space-y-6">
@@ -274,6 +392,36 @@ const NoteDetail = () => {
               </div>
             )}
           </Card>
+          <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>AI Summary</DialogTitle>
+                <DialogDescription>
+                  A concise summary generated by Hugging Face's model.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="mt-4">
+                {summaryLoading ? (
+                  <div className="animate-pulse text-muted-foreground">
+                    Summarizing...
+                  </div>
+                ) : (
+                  <div className="prose prose-lg dark:prose-invert max-w-none">
+                    <ReactMarkdown>
+                      {summaryText || "(no summary)"}
+                    </ReactMarkdown>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button onClick={() => setSummaryOpen(false)}>Close</Button>
+                </DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </motion.div>
       </main>
     </div>
